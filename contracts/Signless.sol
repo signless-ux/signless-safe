@@ -27,7 +27,7 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
 
     /// @notice EIP-712 typehash
     bytes32 public constant EIP712_CLAIM_PUB_KEY_TYPEHASH =
-        keccak256("ClaimPubKey(address owner,uint256 nonce)");
+        keccak256("ClaimPubKey(address delegate,uint256 nonce)");
 
     /// @notice EIP-712 typehash
     bytes32 public constant EIP712_EXEC_SAFE_TX_TYPEHASH =
@@ -39,9 +39,8 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
     mapping(address => uint256) private userNonces;
 
     /// @notice Delegate extended info
-    ///     safe => delegate => info
-    mapping(address => mapping(address => DelegatedSigner))
-        private delegateSigners;
+    ///     delegate => info
+    mapping(address => DelegatedSigner) private delegateSigners;
 
     constructor() EIP712("SignlessSafeModule", "1.0.0") {}
 
@@ -53,30 +52,24 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
     }
 
     /// @notice Get info about registered delegate
-    /// @param safe Gnosis safe using this module
     /// @param delegatee Registered delegate to get info of
     function getDelegateInfo(
-        address safe,
         address delegatee
     ) external view returns (DelegatedSigner memory) {
-        return delegateSigners[safe][delegatee];
+        return delegateSigners[delegatee];
     }
 
     /// @notice Returns true if the `delegatee` pubkey is registered as a
     ///     delegated signer for `delegator`
-    /// @param safe Gnosis safe using this module
     /// @param delegator The delegatooooooooor
     /// @param delegatee The (truncated) ECDSA public key that has been
     ///     registered as a delegate for `delegator`
     /// @return truth or dare
     function isDelegatedSigner(
-        address safe,
         address delegator,
         address delegatee
     ) external view returns (bool) {
-        DelegatedSigner memory delegateSigner = delegateSigners[safe][
-            delegatee
-        ];
+        DelegatedSigner memory delegateSigner = delegateSigners[delegatee];
         return
             delegateSigner.delegatooor == delegator &&
             block.timestamp < delegateSigner.expiry;
@@ -98,10 +91,7 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         uint96 expiry,
         bytes memory signature
     ) external {
-        address safe = msg.sender;
-        DelegatedSigner memory delegateSigner = delegateSigners[safe][
-            delegatee
-        ];
+        DelegatedSigner memory delegateSigner = delegateSigners[delegatee];
         require(
             delegateSigner.delegatooor == address(0) ||
                 delegateSigner.delegatooor == delegator,
@@ -119,7 +109,7 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
             "Invalid signature"
         );
 
-        delegateSigners[safe][delegatee] = DelegatedSigner({
+        delegateSigners[delegatee] = DelegatedSigner({
             delegatooor: delegator,
             expiry: expiry
         });
@@ -143,23 +133,34 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         uint256 value,
         bytes calldata data,
         bytes calldata sig
-    ) public returns (bool) {
+    ) public {
         uint256 nonce = userNonces[delegate]++;
-        bytes32 digest = keccak256(
-            abi.encode(safe, to, value, keccak256(data), nonce)
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    EIP712_EXEC_SAFE_TX_TYPEHASH,
+                    safe,
+                    to,
+                    value,
+                    keccak256(data),
+                    nonce
+                )
+            )
         );
         require(
             ECDSA.recover(digest, sig) == delegate,
             "Invalid signature for delegate"
         );
 
-        return
+        require(
             IGnosisSafe(safe).execTransactionFromModule(
                 to,
                 value,
                 data,
                 IGnosisSafe.Operation.Call
-            );
+            ),
+            "Transaction reverted"
+        );
     }
 
     /// @notice Invoke {exec}, via Gelato relay
@@ -187,9 +188,6 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
             "Fee payment failed"
         );
         // Execute transaction
-        require(
-            exec(delegate, safe, to, value, data, sig),
-            "Execution reverted"
-        );
+        exec(delegate, safe, to, value, data, sig);
     }
 }
