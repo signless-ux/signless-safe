@@ -4,13 +4,20 @@ import { SignlessSafeModule, SignlessSafeModule__factory } from '../typechain-ty
 import { solidityKeccak256, _TypedDataEncoder } from 'ethers/lib/utils'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
+import EthersAdapter from '@safe-global/safe-ethers-lib'
 
 describe('Signless', () => {
     let deployer: SignerWithAddress
     let signlessModule: SignlessSafeModule
+    let ethersAdapter: EthersAdapter
     beforeEach(async () => {
         ;[deployer] = await ethers.getSigners()
         signlessModule = await new SignlessSafeModule__factory(deployer).deploy()
+
+        ethersAdapter = new EthersAdapter({
+            ethers,
+            signerOrProvider: deployer,
+        })
     })
 
     it('create delegates (standalone)', async () => {

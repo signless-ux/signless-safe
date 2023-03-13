@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "deploy:scroll-alpha": "yarn hardhat --network scrollAlpha run scripts/deploy.ts",
+    "deploy:mainnet": "yarn hardhat --network mainnet run scripts/deploy.ts",
     "deploy:base-goerli": "yarn hardhat --network baseGoerli run scripts/deploy.ts",
     "clean": "yarn hardhat clean && rm -rf ./artifacts && rm -rf ./cache",
     "test": "TS_NODE_CACHE=false yarn hardhat --network hardhat test",
@@ -43,7 +43,7 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.4.0",
     "eslint-plugin-promise": "^5.1.0",
-    "ethers": "5.7.1",
+    "ethers": "5.7.2",
     "hardhat": "^2.11.2",
     "hardhat-abi-exporter": "^2.10.1",
     "hardhat-contract-sizer": "^2.6.1",
@@ -60,8 +60,14 @@
     "unique-names-generator": "^4.7.1"
   },
   "dependencies": {
+    "@gelatonetwork/relay-context": "^2.1.0",
+    "@gelatonetwork/relay-sdk": "^3.4.0",
     "@openzeppelin/contracts": "^4.8.0",
     "@openzeppelin/contracts-upgradeable": "^4.8.0",
+    "@safe-global/safe-core-sdk": "^3.3.2",
+    "@safe-global/safe-core-sdk-types": "^1.9.0",
+    "@safe-global/safe-ethers-lib": "^1.9.2",
+    "@safe-global/safe-service-client": "^2.0.0",
     "alchemy-sdk": "^2.2.3",
     "big-integer": "^1.6.51",
     "body-parser": "^1.20.1",

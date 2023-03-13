@@ -4,11 +4,12 @@ pragma solidity 0.8.17;
 import {IGnosisSafe} from "./interfaces/IGnosisSafe.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {GelatoRelayContext} from "@gelatonetwork/relay-context/contracts/GelatoRelayContext.sol";
 
 /// @title Signless Safe Module
 /// @author kevincharm
 /// @notice Delegated child-key registry module for Gnosis Safe
-contract SignlessSafeModule is EIP712 {
+contract SignlessSafeModule is EIP712, GelatoRelayContext {
     struct DelegatedSigner {
         /// @notice The delegator i.e., the "owner"
         /// @dev 20B
@@ -142,7 +143,7 @@ contract SignlessSafeModule is EIP712 {
         uint256 value,
         bytes calldata data,
         bytes calldata sig
-    ) external returns (bool) {
+    ) public returns (bool) {
         uint256 nonce = userNonces[delegate]++;
         bytes32 digest = keccak256(
             abi.encode(safe, to, value, keccak256(data), nonce)
@@ -159,5 +160,36 @@ contract SignlessSafeModule is EIP712 {
                 data,
                 IGnosisSafe.Operation.Call
             );
+    }
+
+    /// @notice Invoke {exec}, via Gelato relay
+    /// @notice maxFee Maximum fee payable to Gelato relayer
+    function execViaRelay(
+        uint256 maxFee,
+        address delegate,
+        address safe,
+        address to,
+        uint256 value,
+        bytes calldata data,
+        bytes calldata sig
+    ) external onlyGelatoRelay {
+        // Pay Gelato relay fee to relayer, using ETH from the safe
+        require(_getFeeToken() == address(0), "Only ETH payment supported");
+        uint256 fee = _getFee();
+        require(fee <= maxFee, "Too expensive");
+        require(
+            IGnosisSafe(safe).execTransactionFromModule(
+                _getFeeCollector(),
+                fee,
+                bytes(""),
+                IGnosisSafe.Operation.Call
+            ),
+            "Fee payment failed"
+        );
+        // Execute transaction
+        require(
+            exec(delegate, safe, to, value, data, sig),
+            "Execution reverted"
+        );
     }
 }

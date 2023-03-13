@@ -38,30 +38,20 @@ const config: HardhatUserConfig = {
     },
     networks: {
         hardhat: {
-            chainId: 137,
+            chainId: 1,
             forking: {
                 enabled: true,
-                url: process.env.MATIC_URL as string,
-                blockNumber: 39570123,
+                url: process.env.MAINNET_URL as string,
+                blockNumber: 16820255,
             },
             blockGasLimit: 155_000_000,
             accounts: {
                 count: 10,
             },
         },
-        local: {
-            url: 'http://localhost:8545',
-            chainId: 137,
-            accounts: [process.env.MAINNET_PK as string],
-        },
-        mumbai: {
-            url: process.env.MUMBAI_URL as string,
-            chainId: 80001,
-            accounts: [process.env.MAINNET_PK as string],
-        },
-        matic: {
-            url: process.env.MATIC_URL as string,
-            chainId: 137,
+        mainnet: {
+            url: process.env.MAINNET_URL as string,
+            chainId: 1,
             accounts: [process.env.MAINNET_PK as string],
         },
         scrollAlpha: {
@@ -72,21 +62,6 @@ const config: HardhatUserConfig = {
         baseGoerli: {
             url: 'https://goerli.base.org',
             chainId: 84531,
-            accounts: [process.env.MAINNET_PK as string],
-        },
-        auroraTestnet: {
-            url: 'https://testnet.aurora.dev',
-            chainId: 1313161555,
-            accounts: [process.env.MAINNET_PK as string],
-        },
-        filHyperspace: {
-            url: 'https://rpc.ankr.com/filecoin_testnet',
-            chainId: 3141,
-            accounts: [process.env.MAINNET_PK as string],
-        },
-        mantleTestnet: {
-            url: 'https://rpc.testnet.mantle.xyz',
-            chainId: 5001,
             accounts: [process.env.MAINNET_PK as string],
         },
     },
