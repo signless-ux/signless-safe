@@ -1,0 +1,6 @@
+[submodule "vendor/lens-core"]
+	path = vendor/lens-core
+	url = https://github.com/TroopFinance/lens-core
+[submodule "vendor/solidity-BigNumber"]
+	path = vendor/solidity-BigNumber
+	url = https://github.com/firoorg/solidity-BigNumber.git
