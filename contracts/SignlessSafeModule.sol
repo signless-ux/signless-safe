@@ -21,7 +21,7 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
 
     event DelegateRegistered(
         address indexed delegator,
-        address delegatee,
+        address delegate,
         uint96 expiry
     );
 
@@ -61,17 +61,17 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
 
     /// @notice Returns true if the `delegatee` pubkey is registered as a
     ///     delegated signer for `delegator`
-    /// @param delegator The delegatooooooooor
-    /// @param delegatee The (truncated) ECDSA public key that has been
+    /// @param safe The Gnosis Safe
+    /// @param delegate The (truncated) ECDSA public key that has been
     ///     registered as a delegate for `delegator`
     /// @return truth or dare
-    function isDelegatedSigner(
-        address delegator,
-        address delegatee
+    function isValidDelegate(
+        address safe,
+        address delegate
     ) external view returns (bool) {
-        DelegatedSigner memory delegateSigner = delegateSigners[delegatee];
+        DelegatedSigner memory delegateSigner = delegateSigners[delegate];
         return
-            delegateSigner.delegatooor == delegator &&
+            IGnosisSafe(safe).isOwner(delegateSigner.delegatooor) &&
             block.timestamp < delegateSigner.expiry;
     }
 
@@ -79,19 +79,19 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
     ///     control. An EIP-712 message must be signed by the delegator. (See
     ///     EIP712_CLAIM_PUB_KEY_TYPEHASH). Must be called by the Gnosis Safe.
     /// @param delegator The canonical "owner" that wishes to delegate to
-    ///     `delegatee`
-    /// @param delegatee Truncated ECDSA public key that the delegator wishes
+    ///     `delegate`
+    /// @param delegate Truncated ECDSA public key that the delegator wishes
     ///     to delegate to.
     /// @param expiry When the delegation becomes invalid, as UNIX timestamp
     /// @param signature ECDSA signature of EIP-712 message signed by
-    ///     `delegatee`.
+    ///     `delegate`.
     function registerDelegateSigner(
         address delegator,
-        address delegatee,
+        address delegate,
         uint96 expiry,
         bytes memory signature
     ) external {
-        DelegatedSigner memory delegateSigner = delegateSigners[delegatee];
+        DelegatedSigner memory delegateSigner = delegateSigners[delegate];
         require(
             delegateSigner.delegatooor == address(0) ||
                 delegateSigner.delegatooor == delegator,
@@ -101,7 +101,7 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         uint256 nonce = userNonces[delegator]++;
         bytes32 digest = _hashTypedDataV4(
             keccak256(
-                abi.encode(EIP712_CLAIM_PUB_KEY_TYPEHASH, delegatee, nonce)
+                abi.encode(EIP712_CLAIM_PUB_KEY_TYPEHASH, delegate, nonce)
             )
         );
         require(
@@ -109,12 +109,12 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
             "Invalid signature"
         );
 
-        delegateSigners[delegatee] = DelegatedSigner({
+        delegateSigners[delegate] = DelegatedSigner({
             delegatooor: delegator,
             expiry: expiry
         });
 
-        emit DelegateRegistered(delegator, delegatee, expiry);
+        emit DelegateRegistered(delegator, delegate, expiry);
     }
 
     /// @notice Execute a transaction on the Gnosis Safe using this module
@@ -134,6 +134,17 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         bytes calldata data,
         bytes calldata sig
     ) public {
+        // Check that the delegatooor for this delegate is an owner of the safe
+        DelegatedSigner memory delegateSigner = delegateSigners[delegate];
+        require(
+            IGnosisSafe(safe).isOwner(delegateSigner.delegatooor),
+            "Delegatooor not an owner of safe"
+        );
+        require(
+            block.timestamp < delegateSigner.expiry,
+            "Delegate key expired"
+        );
+
         uint256 nonce = userNonces[delegate]++;
         bytes32 digest = _hashTypedDataV4(
             keccak256(

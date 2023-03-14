@@ -13,4 +13,6 @@ interface IGnosisSafe {
         bytes calldata data,
         Operation operation
     ) external returns (bool success);
+
+    function isOwner(address owner) external view returns (bool);
 }
