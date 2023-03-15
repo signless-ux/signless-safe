@@ -58,12 +58,10 @@ describe('Signless', () => {
             }
         )
         await signlessModule
-            .registerDelegateSigner(deployer.address, delegate.address, expiry, sig)
+            .registerDelegateSigner(delegate.address, expiry)
             .then((tx) => tx.wait(1))
 
-        expect((await signlessModule.getDelegateInfo(delegate.address)).delegatooor).to.eq(
-            deployer.address
-        )
+        expect(await signlessModule.isValidDelegate(deployer.address, delegate.address)).to.eq(true)
     })
 
     it('e2e: attach module to gnosis safe and execute tx from delegate', async () => {
@@ -83,36 +81,23 @@ describe('Signless', () => {
         // Setup delegate
         const delegate = new ethers.Wallet(ethers.Wallet.createRandom().privateKey, ethers.provider)
         const expiry = (await time.latest()) + 60 * 60 // 1h
-        const nonce = await signlessModule.getNonce(deployer.address)
-        const sig = await deployer._signTypedData(
-            {
-                name: 'SignlessSafeModule',
-                version: '1.0.0',
-                chainId: ethers.provider.network.chainId,
-                verifyingContract: signlessModule.address,
+        const _registerDelegateSignerTx =
+            await signlessModule.populateTransaction.registerDelegateSigner(
+                delegate.address,
+                expiry
+            )
+        const registerDelegateSignerTx = await safe.createTransaction({
+            safeTransactionData: {
+                to: _registerDelegateSignerTx.to!,
+                data: _registerDelegateSignerTx.data!,
+                value: _registerDelegateSignerTx.value?.toString() || '0',
             },
-            {
-                ClaimPubKey: [
-                    {
-                        type: 'address',
-                        name: 'delegate',
-                    },
-                    {
-                        type: 'uint256',
-                        name: 'nonce',
-                    },
-                ],
-            },
-            {
-                delegate: delegate.address,
-                nonce,
-            }
-        )
-        await signlessModule
-            .registerDelegateSigner(deployer.address, delegate.address, expiry, sig)
-            .then((tx) => tx.wait(1))
-        expect((await signlessModule.getDelegateInfo(delegate.address)).delegatooor).to.eq(
-            deployer.address
+        })
+        const registerDelegateSignerTxHash = await safe.getTransactionHash(registerDelegateSignerTx)
+        await safe.approveTransactionHash(registerDelegateSignerTxHash)
+        await safe.executeTransaction(registerDelegateSignerTx)
+        expect(await signlessModule.isValidDelegate(safe.getAddress(), delegate.address)).to.eq(
+            true
         )
 
         // Fund safe
@@ -123,6 +108,7 @@ describe('Signless', () => {
 
         // Execute simple tx
         const bobBalanceBefore = await ethers.provider.getBalance(bob.address)
+        const nonce = await signlessModule.getNonce(delegate.address)
         const execTxSig = await delegate._signTypedData(
             {
                 name: 'SignlessSafeModule',
@@ -177,118 +163,6 @@ describe('Signless', () => {
         )
     })
 
-    it(`e2e: reject delegate key from delegator who doesn't own safe`, async () => {
-        // Setup safe & attach module
-        const safeFactory = await SafeFactory.create({ ethAdapter: ethersAdapter })
-        const safe = await safeFactory.deploySafe({
-            safeAccountConfig: {
-                owners: [deployer.address],
-                threshold: 1,
-            },
-        })
-        const enableModuleTx = await safe.createEnableModuleTx(signlessModule.address)
-        const enableModuleTxHash = await safe.getTransactionHash(enableModuleTx)
-        await safe.approveTransactionHash(enableModuleTxHash)
-        await safe.executeTransaction(enableModuleTx)
-
-        // Setup delegate (as non-owner Alice)
-        const delegate = new ethers.Wallet(ethers.Wallet.createRandom().privateKey, ethers.provider)
-        const expiry = (await time.latest()) + 60 * 60 // 1h
-        const nonce = await signlessModule.getNonce(alice.address)
-        const sig = await alice._signTypedData(
-            {
-                name: 'SignlessSafeModule',
-                version: '1.0.0',
-                chainId: ethers.provider.network.chainId,
-                verifyingContract: signlessModule.address,
-            },
-            {
-                ClaimPubKey: [
-                    {
-                        type: 'address',
-                        name: 'delegate',
-                    },
-                    {
-                        type: 'uint256',
-                        name: 'nonce',
-                    },
-                ],
-            },
-            {
-                delegate: delegate.address,
-                nonce,
-            }
-        )
-        // Error mode: try to register with `deployer` as delegator, but the EIP-712 message was signed by `alice`
-        await expect(
-            signlessModule.registerDelegateSigner(deployer.address, delegate.address, expiry, sig)
-        ).to.be.revertedWith('Invalid signature')
-        // Success mode: register with correct signer
-        await signlessModule
-            .registerDelegateSigner(alice.address, delegate.address, expiry, sig)
-            .then((tx) => tx.wait(1))
-        expect((await signlessModule.getDelegateInfo(delegate.address)).delegatooor).to.eq(
-            alice.address
-        )
-
-        // Fund safe
-        await deployer.sendTransaction({
-            to: safe.getAddress(),
-            value: parseEther('10'),
-        })
-
-        // Execute simple tx
-        const execTxSig = await delegate._signTypedData(
-            {
-                name: 'SignlessSafeModule',
-                version: '1.0.0',
-                chainId: ethers.provider.network.chainId,
-                verifyingContract: signlessModule.address,
-            },
-            {
-                ExecSafeTx: [
-                    {
-                        type: 'address',
-                        name: 'safe',
-                    },
-                    {
-                        type: 'address',
-                        name: 'to',
-                    },
-                    {
-                        type: 'uint256',
-                        name: 'value',
-                    },
-                    {
-                        type: 'bytes32',
-                        name: 'dataHash',
-                    },
-                    {
-                        type: 'uint256',
-                        name: 'nonce',
-                    },
-                ],
-            },
-            {
-                safe: safe.getAddress(),
-                to: bob.address,
-                value: parseEther('1.0'),
-                dataHash: keccak256([]),
-                nonce,
-            }
-        )
-        await expect(
-            signlessModule.exec(
-                delegate.address,
-                safe.getAddress(),
-                bob.address,
-                parseEther('1.0'),
-                [],
-                execTxSig
-            )
-        ).to.be.revertedWith('Delegatooor not an owner of safe')
-    })
-
     it('e2e: reject when delegate key has expired', async () => {
         // Setup safe & attach module
         const safeFactory = await SafeFactory.create({ ethAdapter: ethersAdapter })
@@ -306,36 +180,23 @@ describe('Signless', () => {
         // Setup delegate
         const delegate = new ethers.Wallet(ethers.Wallet.createRandom().privateKey, ethers.provider)
         const expiry = (await time.latest()) + 60 * 60 // 1h
-        const nonce = await signlessModule.getNonce(deployer.address)
-        const sig = await deployer._signTypedData(
-            {
-                name: 'SignlessSafeModule',
-                version: '1.0.0',
-                chainId: ethers.provider.network.chainId,
-                verifyingContract: signlessModule.address,
+        const _registerDelegateSignerTx =
+            await signlessModule.populateTransaction.registerDelegateSigner(
+                delegate.address,
+                expiry
+            )
+        const registerDelegateSignerTx = await safe.createTransaction({
+            safeTransactionData: {
+                to: _registerDelegateSignerTx.to!,
+                data: _registerDelegateSignerTx.data!,
+                value: _registerDelegateSignerTx.value?.toString() || '0',
             },
-            {
-                ClaimPubKey: [
-                    {
-                        type: 'address',
-                        name: 'delegate',
-                    },
-                    {
-                        type: 'uint256',
-                        name: 'nonce',
-                    },
-                ],
-            },
-            {
-                delegate: delegate.address,
-                nonce,
-            }
-        )
-        await signlessModule
-            .registerDelegateSigner(deployer.address, delegate.address, expiry, sig)
-            .then((tx) => tx.wait(1))
-        expect((await signlessModule.getDelegateInfo(delegate.address)).delegatooor).to.eq(
-            deployer.address
+        })
+        const registerDelegateSignerTxHash = await safe.getTransactionHash(registerDelegateSignerTx)
+        await safe.approveTransactionHash(registerDelegateSignerTxHash)
+        await safe.executeTransaction(registerDelegateSignerTx)
+        expect(await signlessModule.isValidDelegate(safe.getAddress(), delegate.address)).to.eq(
+            true
         )
 
         // Fund safe
@@ -348,6 +209,7 @@ describe('Signless', () => {
         await time.increaseTo(expiry + 1)
 
         // Execute simple tx
+        const nonce = await signlessModule.getNonce(delegate.address)
         const execTxSig = await delegate._signTypedData(
             {
                 name: 'SignlessSafeModule',
