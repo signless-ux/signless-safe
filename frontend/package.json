@@ -1,0 +1,39 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.10.6",
+    "@emotion/styled": "^11.10.6",
+    "@mui/icons-material": "^5.11.11",
+    "@mui/material": "^5.11.13",
+    "@rainbow-me/rainbowkit": "^0.12.1",
+    "@safe-global/safe-core-sdk": "^3.3.2",
+    "@safe-global/safe-core-sdk-types": "^1.9.0",
+    "@safe-global/safe-ethers-lib": "^1.9.2",
+    "@safe-global/safe-service-client": "^2.0.0",
+    "@types/node": "18.15.3",
+    "@types/react": "18.0.28",
+    "@types/react-dom": "18.0.11",
+    "@walletconnect/web3wallet": "^1.5.0",
+    "eslint": "8.36.0",
+    "eslint-config-next": "13.2.4",
+    "ethers": "5.7.2",
+    "lokijs": "^1.5.12",
+    "next": "13.2.4",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-no-ssr": "^1.1.0",
+    "typescript": "4.9.5",
+    "wagmi": "^0.12.1"
+  },
+  "devDependencies": {
+    "@types/react-no-ssr": "^1.1.3"
+  }
+}

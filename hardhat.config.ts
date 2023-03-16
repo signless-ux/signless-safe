@@ -54,6 +54,11 @@ const config: HardhatUserConfig = {
             chainId: 1,
             accounts: [process.env.MAINNET_PK as string],
         },
+        xdai: {
+            url: process.env.XDAI_URL as string,
+            chainId: 0x64,
+            accounts: [process.env.MAINNET_PK as string],
+        },
         scrollAlpha: {
             url: 'https://alpha-rpc.scroll.io/l2',
             chainId: 534353,

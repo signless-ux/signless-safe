@@ -4,6 +4,7 @@
   "description": "",
   "scripts": {
     "deploy:mainnet": "yarn hardhat --network mainnet run scripts/deploy.ts",
+    "deploy:xdai": "yarn hardhat --network xdai run scripts/deploy.ts",
     "deploy:base-goerli": "yarn hardhat --network baseGoerli run scripts/deploy.ts",
     "clean": "yarn hardhat clean && rm -rf ./artifacts && rm -rf ./cache",
     "test": "TS_NODE_CACHE=false yarn hardhat --network hardhat test",
@@ -78,7 +79,6 @@
     "merkletreejs": "^0.3.9",
     "mysql2": "^2.3.3",
     "pino": "^8.8.0",
-    "snarkjs": "^0.6.7",
     "zod": "^3.19.1"
   }
 }
