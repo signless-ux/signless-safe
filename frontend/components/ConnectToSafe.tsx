@@ -16,8 +16,12 @@ export const ConnectToSafe: React.FC<ConnectToSafeProps> = (props) => {
     const [safeAddress, setSafeAddress] = useState<string>('')
 
     const isSafeAddressValid = ethers.utils.isAddress(safeAddress)
-    const { data: isModuleEnabled } = useContractRead({
-        address: config.xdai.signlessModule as `0x${string}`,
+    const {
+        data: isModuleEnabled,
+        refetch: refetchIsModuleEnabled,
+        error: isModuleEnabledError,
+    } = useContractRead({
+        address: safeAddress as `0x${string}`,
         abi: [
             {
                 type: 'function',
@@ -35,7 +39,8 @@ export const ConnectToSafe: React.FC<ConnectToSafeProps> = (props) => {
                 stateMutability: 'view',
             },
         ],
-        args: [safeAddress as `0x${string}`],
+        functionName: 'isModuleEnabled',
+        args: [config.xdai.signlessModule as `0x${string}`],
         enabled: isSafeAddressValid,
     })
 
@@ -69,7 +74,8 @@ export const ConnectToSafe: React.FC<ConnectToSafeProps> = (props) => {
         const enableModuleTxHash = await safe.getTransactionHash(enableModuleTx)
         await safe.approveTransactionHash(enableModuleTxHash)
         await safe.executeTransaction(enableModuleTx)
-    }, [ethAdapter, safeAddress])
+        await refetchIsModuleEnabled()
+    }, [ethAdapter, safeAddress, refetchIsModuleEnabled])
 
     return (
         <Card variant="outlined">
