@@ -6,6 +6,9 @@ import { useContractRead, usePrepareContractWrite, useSigner } from 'wagmi'
 import EthersAdapter from '@safe-global/safe-ethers-lib'
 import Safe from '@safe-global/safe-core-sdk'
 import config from '@/config'
+import { useGlobalState } from '@/lib/useGlobalState'
+
+const { isAddress, getAddress } = ethers.utils
 
 export interface ConnectToSafeProps {
     web3wallet: Web3WalletType
@@ -14,8 +17,15 @@ export interface ConnectToSafeProps {
 export const ConnectToSafe: React.FC<ConnectToSafeProps> = (props) => {
     const { web3wallet } = props
     const [safeAddress, setSafeAddress] = useState<string>('')
+    const { safe: connectedSafe, setSafe } = useGlobalState()
 
-    const isSafeAddressValid = ethers.utils.isAddress(safeAddress)
+    const isSafeAddressValid = useMemo(() => {
+        try {
+            return isAddress(getAddress(safeAddress))
+        } catch (err) {
+            return false
+        }
+    }, [safeAddress])
     const {
         data: isModuleEnabled,
         refetch: refetchIsModuleEnabled,
@@ -69,13 +79,21 @@ export const ConnectToSafe: React.FC<ConnectToSafeProps> = (props) => {
             return
         }
 
-        const safe = await Safe.create({ ethAdapter, safeAddress })
+        const safe = await Safe.create({
+            ethAdapter,
+            safeAddress,
+            isL1SafeMasterCopy: false,
+        })
         const enableModuleTx = await safe.createEnableModuleTx(config.xdai.signlessModule)
         const enableModuleTxHash = await safe.getTransactionHash(enableModuleTx)
         await safe.approveTransactionHash(enableModuleTxHash)
         await safe.executeTransaction(enableModuleTx)
         await refetchIsModuleEnabled()
     }, [ethAdapter, safeAddress, refetchIsModuleEnabled])
+
+    const connect = useCallback(() => {
+        setSafe(safeAddress)
+    }, [setSafe, safeAddress])
 
     return (
         <Card variant="outlined">
@@ -99,18 +117,35 @@ export const ConnectToSafe: React.FC<ConnectToSafeProps> = (props) => {
                         label="Safe Address"
                         fullWidth
                         value={safeAddress}
-                        onChange={(event) => setSafeAddress(event.target.value)}
+                        onChange={(event) => {
+                            setSafeAddress(event.target.value)
+                        }}
                         error={!isSafeAddressValid}
                         helperText={safeAddressValidationText}
                     />
                 </Box>
                 <Grid py={2} container alignItems="center" justifyContent="center">
-                    {!isModuleEnabled && (
-                        <Button variant="contained" onClick={enableModule}>
+                    {typeof isModuleEnabled !== 'undefined' && !isModuleEnabled && (
+                        <Button
+                            variant="contained"
+                            onClick={enableModule}
+                            disabled={!isSafeAddressValid}
+                        >
                             Enable Signless Module
                         </Button>
                     )}
-                    {isModuleEnabled && <Button variant="contained">Connect</Button>}
+                    {(typeof isModuleEnabled === 'undefined' || isModuleEnabled) && (
+                        <Button
+                            variant="contained"
+                            onClick={connect}
+                            disabled={
+                                connectedSafe?.toLowerCase() === safeAddress.toLowerCase() ||
+                                !isSafeAddressValid
+                            }
+                        >
+                            {connectedSafe === safeAddress ? 'Connected' : 'Connect'}
+                        </Button>
+                    )}
                 </Grid>
             </Box>
         </Card>
