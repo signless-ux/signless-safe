@@ -73,9 +73,9 @@ describe('Signless', () => {
         expect(await signlessModule.isValidDelegate(deployer.address, delegate.address)).to.eq(
             false
         )
-        await expect(
-            signlessModule.getDelegateSignersPaginated(deployer.address, 0, 1)
-        ).to.be.revertedWith('Offset out-of-bounds')
+        expect(await signlessModule.getDelegateSignersPaginated(deployer.address, 0, 1)).to.deep.eq(
+            []
+        )
     })
 
     it('e2e: attach module to gnosis safe and execute tx from delegate', async () => {

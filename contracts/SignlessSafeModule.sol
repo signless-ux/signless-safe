@@ -90,7 +90,8 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         uint256 maxPageSize
     ) external view returns (address[] memory signers) {
         uint256 len = delegatesList[safe].length;
-        require(offset < len, "Offset out-of-bounds");
+        if (offset >= len) return new address[](0);
+
         uint256 pageSize = offset + maxPageSize > len
             ? len - offset
             : maxPageSize;
