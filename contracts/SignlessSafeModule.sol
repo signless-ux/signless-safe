@@ -23,10 +23,6 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
     );
 
     /// @notice EIP-712 typehash
-    bytes32 public constant EIP712_CLAIM_PUB_KEY_TYPEHASH =
-        keccak256("ClaimPubKey(address delegate,uint256 nonce)");
-
-    /// @notice EIP-712 typehash
     bytes32 public constant EIP712_EXEC_SAFE_TX_TYPEHASH =
         keccak256(
             "ExecSafeTx(address safe,address to,uint256 value,bytes32 dataHash,uint256 nonce)"
@@ -49,14 +45,14 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         return userNonces[user];
     }
 
-    /// @notice Get info about registered delegate
+    /// @notice Get expiry of registered delegate
     /// @param safe Gnosis Safe
-    /// @param delegatee Registered delegate to get info of
-    function getDelegateInfo(
+    /// @param delegate Registered delegate to get info of
+    function getDelegateExpiry(
         address safe,
-        address delegatee
-    ) external view returns (DelegatedSigner memory) {
-        return delegateSigners[safe][delegatee];
+        address delegate
+    ) external view returns (uint256) {
+        return delegateSigners[safe][delegate].expiry;
     }
 
     /// @notice Returns true if the `delegatee` pubkey is registered as a
@@ -150,19 +146,9 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         bytes calldata data,
         bytes calldata sig
     ) external onlyGelatoRelay {
-        // Pay Gelato relay fee to relayer, using ETH from the safe
-        require(_getFeeToken() == address(0), "Only ETH payment supported");
         uint256 fee = _getFee();
         require(fee <= maxFee, "Too expensive");
-        require(
-            IGnosisSafe(safe).execTransactionFromModule(
-                _getFeeCollector(),
-                fee,
-                bytes(""),
-                IGnosisSafe.Operation.Call
-            ),
-            "Fee payment failed"
-        );
+        _transferRelayFee();
         // Execute transaction
         exec(delegate, safe, to, value, data, sig);
     }
