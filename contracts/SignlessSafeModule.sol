@@ -118,6 +118,10 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
 
         // NB: registered delegates are isolated to each safe
         address safe = msg.sender;
+        require(
+            delegatesInfo[safe][delegate].createdAt == 0,
+            "Delegate already registered"
+        );
         // Insert delegate into list for Safe
         delegatesList[safe].push(delegate);
         // Record delegate information
