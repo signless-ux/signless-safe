@@ -148,7 +148,20 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
     ) external onlyGelatoRelay {
         uint256 fee = _getFee();
         require(fee <= maxFee, "Too expensive");
-        _transferRelayFee();
+        require(
+            _getFeeToken() == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
+            "Only ETH payment supported"
+        );
+        require(
+            IGnosisSafe(safe).execTransactionFromModule(
+                _getFeeCollector(),
+                fee,
+                bytes(""),
+                IGnosisSafe.Operation.Call
+            ),
+            "Fee payment failed"
+        );
+
         // Execute transaction
         exec(delegate, safe, to, value, data, sig);
     }
