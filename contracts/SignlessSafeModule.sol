@@ -80,6 +80,14 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         return block.timestamp < delegateSigner.expiry;
     }
 
+    /// @notice Get count of delegated signers for a safe
+    /// @param safe The Gnosis Safe
+    function getDelegateSignersCount(
+        address safe
+    ) external view returns (uint256) {
+        return delegatesList[safe].length;
+    }
+
     /// @notice Get a paginated list of delegated signers
     /// @param safe The Gnosis Safe
     /// @param offset Offset in the list to start fetching from
