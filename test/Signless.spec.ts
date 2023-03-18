@@ -24,44 +24,58 @@ describe('Signless', () => {
     })
 
     it('create delegates (standalone)', async () => {
-        // Clientside: create a private key that will be saved in the browser
-        const delegate = new ethers.Wallet(ethers.Wallet.createRandom().privateKey, ethers.provider)
-        // Optional: client can save this as an encrypted JSON wallet
-        // --> const encryptedDelegate = await delegate.encrypt('this-is-a-password')
-        // `delegate.privateKey` should be saved to localStorage as the long-lived "session"
-        // --> localStorage.setItem('encryptedDelegate', JSON.stringify(encryptedDelegate))
+        const delegates = []
+        for (let i = 0; i < 10; i++) {
+            // Clientside: create a private key that will be saved in the browser
+            const delegate = new ethers.Wallet(
+                ethers.Wallet.createRandom().privateKey,
+                ethers.provider
+            )
+            delegates.push(delegate.address)
+            // Optional: client can save this as an encrypted JSON wallet
+            // --> const encryptedDelegate = await delegate.encrypt('this-is-a-password')
+            // `delegate.privateKey` should be saved to localStorage as the long-lived "session"
+            // --> localStorage.setItem('encryptedDelegate', JSON.stringify(encryptedDelegate))
 
-        const expiry = (await time.latest()) + 60 * 60 // 1h
-        const nonce = await signlessModule.getNonce(deployer.address)
-        const sig = await deployer._signTypedData(
-            {
-                name: 'SignlessSafeModule',
-                version: '1.0.0',
-                chainId: ethers.provider.network.chainId,
-                verifyingContract: signlessModule.address,
-            },
-            {
-                ClaimPubKey: [
-                    {
-                        type: 'address',
-                        name: 'delegate',
-                    },
-                    {
-                        type: 'uint256',
-                        name: 'nonce',
-                    },
-                ],
-            },
-            {
-                delegate: delegate.address,
-                nonce,
-            }
+            const expiry = (await time.latest()) + 60 * 60 // 1h
+            await signlessModule
+                .registerDelegateSigner(delegate.address, expiry)
+                .then((tx) => tx.wait(1))
+            expect(await signlessModule.isValidDelegate(deployer.address, delegate.address)).to.eq(
+                true
+            )
+        }
+
+        let recordedDelegates = await signlessModule.getDelegateSignersPaginated(
+            deployer.address,
+            0,
+            delegates.length
         )
+        expect(recordedDelegates).to.deep.eq(delegates)
+
+        recordedDelegates = await signlessModule.getDelegateSignersPaginated(deployer.address, 3, 5)
+        expect(recordedDelegates).to.deep.eq(delegates.slice(3, 3 + 5))
+    })
+
+    it('revokes signers', async () => {
+        const delegate = new ethers.Wallet(ethers.Wallet.createRandom().privateKey, ethers.provider)
+        const expiry = (await time.latest()) + 60 * 60 // 1h
         await signlessModule
             .registerDelegateSigner(delegate.address, expiry)
             .then((tx) => tx.wait(1))
-
         expect(await signlessModule.isValidDelegate(deployer.address, delegate.address)).to.eq(true)
+        expect(await signlessModule.getDelegateSignersPaginated(deployer.address, 0, 1)).to.deep.eq(
+            [delegate.address]
+        )
+
+        // Revoke
+        await signlessModule.revokeDelegateSigner(0)
+        expect(await signlessModule.isValidDelegate(deployer.address, delegate.address)).to.eq(
+            false
+        )
+        await expect(
+            signlessModule.getDelegateSignersPaginated(deployer.address, 0, 1)
+        ).to.be.revertedWith('Offset out-of-bounds')
     })
 
     it('e2e: attach module to gnosis safe and execute tx from delegate', async () => {

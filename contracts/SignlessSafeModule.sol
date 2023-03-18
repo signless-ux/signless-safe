@@ -11,16 +11,20 @@ import {GelatoRelayContext} from "@gelatonetwork/relay-context/contracts/GelatoR
 /// @notice Delegated child-key registry module for Gnosis Safe
 contract SignlessSafeModule is EIP712, GelatoRelayContext {
     struct DelegatedSigner {
+        /// @notice Timestamp of when this delegate was created
+        /// @dev 8B
+        uint64 createdAt;
         /// @notice Timestamp of when this delegate is no longer valid
-        /// @dev 12B
-        uint96 expiry;
+        /// @dev 8B
+        uint64 expiry;
     }
 
     event DelegateRegistered(
         address indexed safe,
         address delegate,
-        uint96 expiry
+        uint64 expiry
     );
+    event DelegateRevoked(address indexed safe, address delegate);
 
     /// @notice EIP-712 typehash
     bytes32 public constant EIP712_EXEC_SAFE_TX_TYPEHASH =
@@ -31,10 +35,16 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
     /// @notice Nonce per user, for EIP-712 messages
     mapping(address => uint256) private userNonces;
 
-    /// @notice Delegate extended info
+    /// @notice Linked-list of delegates per safe
+    ///     safe => delegates[]
+    /// @dev We probably don't need this in prod; can be made redundant if we
+    ///     index DelegateRegistered events.
+    mapping(address => address[]) private delegatesList;
+
+    /// @notice Information about delegated signers per safe
     ///     safe => delegate => info
     mapping(address => mapping(address => DelegatedSigner))
-        private delegateSigners;
+        private delegatesInfo;
 
     constructor() EIP712("SignlessSafeModule", "1.0.0") {}
 
@@ -45,14 +55,15 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         return userNonces[user];
     }
 
-    /// @notice Get expiry of registered delegate
+    /// @notice Get info of registered delegate
     /// @param safe Gnosis Safe
     /// @param delegate Registered delegate to get info of
-    function getDelegateExpiry(
+    function getDelegateInfo(
         address safe,
         address delegate
-    ) external view returns (uint256) {
-        return delegateSigners[safe][delegate].expiry;
+    ) external view returns (uint64 createdAt, uint64 expiry) {
+        DelegatedSigner memory signer = delegatesInfo[safe][delegate];
+        return (signer.createdAt, signer.expiry);
     }
 
     /// @notice Returns true if the `delegatee` pubkey is registered as a
@@ -65,8 +76,27 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         address safe,
         address delegate
     ) external view returns (bool) {
-        DelegatedSigner memory delegateSigner = delegateSigners[safe][delegate];
+        DelegatedSigner memory delegateSigner = delegatesInfo[safe][delegate];
         return block.timestamp < delegateSigner.expiry;
+    }
+
+    /// @notice Get a paginated list of delegated signers
+    /// @param safe The Gnosis Safe
+    /// @param offset Offset in the list to start fetching from
+    /// @param maxPageSize Maximum number of signers to fetch
+    function getDelegateSignersPaginated(
+        address safe,
+        uint256 offset,
+        uint256 maxPageSize
+    ) external view returns (address[] memory signers) {
+        uint256 len = delegatesList[safe].length;
+        require(offset < len, "Offset out-of-bounds");
+        uint256 pageSize = offset + maxPageSize > len
+            ? len - offset
+            : maxPageSize;
+        signers = new address[](pageSize);
+        for (uint256 i = 0; i < pageSize; ++i)
+            signers[i] = delegatesList[safe][offset + i];
     }
 
     /// @notice Register a delegate public key of which the safe has
@@ -74,12 +104,44 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
     /// @param delegate Truncated ECDSA public key that the delegator wishes
     ///     to delegate to.
     /// @param expiry When the delegation becomes invalid, as UNIX timestamp
-    function registerDelegateSigner(address delegate, uint96 expiry) external {
+    function registerDelegateSigner(address delegate, uint64 expiry) external {
+        require(delegate != address(0), "Invalid delegate address");
+
         // NB: registered delegates are isolated to each safe
         address safe = msg.sender;
-        delegateSigners[safe][delegate] = DelegatedSigner({expiry: expiry});
+        // Insert delegate into list for Safe
+        delegatesList[safe].push(delegate);
+        // Record delegate information
+        delegatesInfo[safe][delegate] = DelegatedSigner({
+            createdAt: uint64(block.timestamp),
+            expiry: expiry
+        });
 
         emit DelegateRegistered(safe, delegate, expiry);
+    }
+
+    /// @notice Revoke a delegate public key
+    /// @param delegateIndex Index of the delegate to revoke
+    function revokeDelegateSigner(uint256 delegateIndex) external {
+        // NB: Only safe txes may revoke delegate signers
+        address safe = msg.sender;
+        require(
+            delegateIndex < delegatesList[safe].length,
+            "Delegate index out-of-bounds"
+        );
+
+        // Pop it off the list
+        uint256 lastIndex = delegatesList[safe].length - 1;
+        address delegate = delegatesList[safe][delegateIndex];
+        delegatesList[safe][delegateIndex] = delegatesList[safe][lastIndex];
+        delegatesList[safe].pop();
+        // Clear delegate info
+        delegatesInfo[safe][delegate] = DelegatedSigner({
+            createdAt: 0,
+            expiry: 0
+        });
+
+        emit DelegateRevoked(safe, delegate);
     }
 
     /// @notice Execute a transaction on the Gnosis Safe using this module
@@ -100,7 +162,7 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         bytes calldata sig
     ) public {
         // Check that the delegatooor for this delegate is an owner of the safe
-        DelegatedSigner memory delegateSigner = delegateSigners[safe][delegate];
+        DelegatedSigner memory delegateSigner = delegatesInfo[safe][delegate];
         require(
             block.timestamp < delegateSigner.expiry,
             "Delegate key expired"
