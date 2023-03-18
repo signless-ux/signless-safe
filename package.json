@@ -4,6 +4,7 @@
   "description": "",
   "scripts": {
     "deploy:mainnet": "yarn hardhat --network mainnet run scripts/deploy.ts",
+    "deploy:xdai": "yarn hardhat --network xdai run scripts/deploy.ts",
     "deploy:base-goerli": "yarn hardhat --network baseGoerli run scripts/deploy.ts",
     "clean": "yarn hardhat clean && rm -rf ./artifacts && rm -rf ./cache",
     "test": "TS_NODE_CACHE=false yarn hardhat --network hardhat test",

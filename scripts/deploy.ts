@@ -1,10 +1,11 @@
 import { ethers } from 'hardhat'
-import { IGroth16Proof } from 'snarkjs'
-import { parseEther, parseUnits } from 'ethers/lib/utils'
+import { SignlessSafeModule__factory } from '../typechain-types'
 
 async function main() {
     const [deployer] = await ethers.getSigners()
-    //
+    const signlessSafeModule = await new SignlessSafeModule__factory(deployer).deploy()
+    await signlessSafeModule.deployed()
+    console.log(`Deployed SignlessSafeModule at: ${signlessSafeModule.address}`)
 }
 
 main()
