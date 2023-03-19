@@ -52,22 +52,17 @@ const config: HardhatUserConfig = {
         mainnet: {
             url: process.env.MAINNET_URL as string,
             chainId: 1,
-            accounts: [process.env.MAINNET_PK as string],
+            accounts: [process.env.SIGNLESS_DEPLOYER_PK as string],
         },
         xdai: {
             url: process.env.XDAI_URL as string,
             chainId: 0x64,
-            accounts: [process.env.MAINNET_PK as string],
-        },
-        scrollAlpha: {
-            url: 'https://alpha-rpc.scroll.io/l2',
-            chainId: 534353,
-            accounts: [process.env.MAINNET_PK as string],
+            accounts: [process.env.SIGNLESS_DEPLOYER_PK as string],
         },
         baseGoerli: {
             url: 'https://goerli.base.org',
             chainId: 84531,
-            accounts: [process.env.MAINNET_PK as string],
+            accounts: [process.env.SIGNLESS_DEPLOYER_PK as string],
         },
     },
     gasReporter: {
@@ -80,7 +75,7 @@ const config: HardhatUserConfig = {
             mainnet: process.env.ETHERSCAN_API_KEY as string,
             polygonMumbai: process.env.POLYGONSCAN_API_KEY as string,
             polygon: process.env.POLYGONSCAN_API_KEY as string,
-            xdai: process.env.GNOSISSCAN_API_KEY as string,
+            gnosis: process.env.GNOSISSCAN_API_KEY as string,
         },
     },
     contractSizer: {
