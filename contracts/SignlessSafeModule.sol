@@ -222,7 +222,7 @@ contract SignlessSafeModule is EIP712, GelatoRelayContext {
         bytes calldata sig
     ) external onlyGelatoRelay {
         uint256 fee = _getFee();
-        require(fee <= maxFee, "Too expensive");
+        require(fee <= maxFee, "Relay fee exceeds maxFee");
         require(
             _getFeeToken() == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
             "Only ETH payment supported"
