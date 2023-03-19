@@ -9,3 +9,9 @@ Signless is a smart contract wallet and infrastructure that allows dApp enjoyooo
 ## How it works
 
 It doesn't
+
+## Deployed contracts
+
+Gnosis Chain: [0xb9Cd1dd44799f508769040156962E01ADf97e330](https://gnosisscan.io/address/0xb9Cd1dd44799f508769040156962E01ADf97e330)
+
+Base Goerli: [0xb9Cd1dd44799f508769040156962E01ADf97e330](https://goerli.basescan.org/address/0xb9Cd1dd44799f508769040156962E01ADf97e330)
