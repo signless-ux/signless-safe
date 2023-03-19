@@ -80,6 +80,7 @@ const config: HardhatUserConfig = {
             mainnet: process.env.ETHERSCAN_API_KEY as string,
             polygonMumbai: process.env.POLYGONSCAN_API_KEY as string,
             polygon: process.env.POLYGONSCAN_API_KEY as string,
+            xdai: process.env.GNOSISSCAN_API_KEY as string,
         },
     },
     contractSizer: {
