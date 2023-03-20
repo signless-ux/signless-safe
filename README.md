@@ -12,6 +12,8 @@ It doesn't
 
 ## Deployed contracts
 
+Ethereum Mainnet: [0xb9Cd1dd44799f508769040156962E01ADf97e330](https://etherscan.io/address/0xb9Cd1dd44799f508769040156962E01ADf97e330)
+
 Gnosis Chain: [0xb9Cd1dd44799f508769040156962E01ADf97e330](https://gnosisscan.io/address/0xb9Cd1dd44799f508769040156962E01ADf97e330)
 
 Base Goerli: [0xb9Cd1dd44799f508769040156962E01ADf97e330](https://goerli.basescan.org/address/0xb9Cd1dd44799f508769040156962E01ADf97e330)
